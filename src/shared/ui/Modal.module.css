@@ -1,0 +1,4 @@
+.dialog { border: 1px solid var(--border); border-radius: 12px; padding: 26px; width: min(600px, calc(100% - 32px)); max-height: 90dvh; color: var(--ink); box-shadow: 0 20px 80px #142b4820; }
+.dialog::backdrop { background: #14243766; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.header h2 { margin: 0; font-size: 20px; }
