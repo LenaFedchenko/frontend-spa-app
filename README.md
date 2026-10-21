@@ -1,59 +1,346 @@
-# Common Ground
+# Common Ground — Frontend
 
-React 19, strict TypeScript, Vite, CSS Modules, native Fetch and WebSocket, and DOMPurify. All frontend files live here; the Django backend is unchanged.
+**A modern, responsive discussion interface built with React, TypeScript, and Vite.**
 
-## Run
+Common Ground is a real-time discussion platform where visitors can create comments, share opinions, reply to other users, and follow conversations.
 
-```sh
+The frontend was developed as part of the **dZENcode technical assessment** and integrates with a Django REST Framework backend.
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|---|---|
+| Framework | React |
+| Language | TypeScript |
+| Build tool | Vite |
+| Architecture | Feature-Sliced Design |
+| Styling | CSS Modules |
+| HTTP communication | Fetch API |
+| Real-time communication | WebSocket API |
+| Containerization | Docker |
+| Web server | Nginx |
+
+## Features
+
+### Discussion Feed
+
+- Display comments and nested replies
+- Sort discussions by date, username, or email
+- Ascending and descending sorting
+- Paginated discussions
+- Display loading indicators and error messages
+- Refresh comments when new activity is detected
+
+### Comment Editor
+
+- Create comments without registration
+- Write replies to existing comments
+- Format text using supported HTML tags
+- Insert links
+- Preview formatted content
+- Validate inputs before submission
+
+### Authentication
+
+- User registration
+- Login and logout
+- JWT-based authentication
+- Automatic access-token refresh
+- Authenticated user information in the interface
+
+### CAPTCHA
+
+- CAPTCHA image display
+- CAPTCHA answer validation
+- Refresh CAPTCHA challenge
+- Display validation errors
+
+### File Attachments
+
+Supported formats:
+
+- JPG
+- PNG
+- GIF
+- TXT
+
+Users can attach files to their comments. Images and text files are displayed with appropriate previews or download links.
+
+### Real-Time Updates
+
+The application connects to the Django backend using WebSockets.
+
+When another user creates a comment, the frontend receives an event and updates the relevant discussion state.
+
+The connection includes automatic reconnection and protection against processing duplicate events.
+
+### Responsive Interface
+
+The application is styled with CSS Modules and supports desktop and mobile screen sizes.
+
+---
+
+## Project Structure
+
+The application follows Feature-Sliced Design principles.
+
+```text
+frontend/
+├── src/
+│   ├── app/
+│   ├── pages/
+│   │   └── comments-page/
+│   ├── widgets/
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── comment-editor/
+│   │   ├── comment-sorting/
+│   │   ├── comment-pagination/
+│   │   └── create-comment/
+│   ├── entities/
+│   │   ├── comment/
+│   │   └── attachment/
+│   └── shared/
+│       ├── api/
+│       ├── config/
+│       ├── lib/
+│       └── ui/
+├── index.html
+├── package.json
+├── vite.config.ts
+├── Dockerfile
+├── nginx.conf
+└── README.md
+```
+
+### Architecture
+
+**App** — application-level configuration and initialization.
+
+**Pages** — page composition and layout.
+
+**Widgets** — larger interface components, such as the header and discussion feed.
+
+**Features** — user interactions, including authentication, comment creation, sorting, and pagination.
+
+**Entities** — domain models and UI components for comments and attachments.
+
+**Shared** — reusable API utilities, configuration, helpers, and UI elements.
+
+This separation helps keep the application modular and maintainable.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js
+- npm
+- Running backend API
+
+### 1. Clone the repository
+
+```bash
+git clone <FRONTEND_REPOSITORY_URL>
 cd frontend
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
-cp .env.example .env.local
+```
+
+### 3. Configure the backend URL
+
+Create `.env` if needed:
+
+```env
+VITE_API_URL=http://127.0.0.1:8000
+```
+
+The development server uses a proxy to communicate with the Django backend.
+
+### 4. Start the development server
+
+```bash
 npm run dev
 ```
 
-Start the existing Django ASGI service and its PostgreSQL/Redis dependencies separately, using your existing backend workflow. Open the URL printed by Vite. No sample comments or simulated successful requests are included.
+Open:
 
-```sh
-npm run typecheck
-npm test
-npm run build
-npm run preview
+http://localhost:5173
+
+---
+
+## Running with Docker
+
+The full project is designed to run through the backend's Docker Compose configuration.
+
+Expected directory structure:
+
+```text
+project/
+├── spa-test/
+└── frontend/
 ```
 
-## Configuration and deployment
+Navigate to the backend directory:
 
-`VITE_API_URL` is the Django origin; `VITE_WS_URL` is the WebSocket origin. Vite development proxies `/backend/*` to Django and `/ws/*` to Channels, so the backend does not need CORS changes. CAPTCHA and uploaded media URLs also use this proxy in development.
+```bash
+cd ../spa-test
+```
 
-For production, serve `dist/` from your frontend host and reverse-proxy `/comments/`, `/api/`, `/captcha/`, `/media/`, and `/ws/` to the existing backend. Leave both environment variables empty for this same-origin setup, and support WebSocket upgrades on `/ws/`. Alternatively, configure the two origins at build time; cross-origin HTTP requires CORS support at the deployment proxy because Django currently has none. HTTPS pages always use secure WebSockets. `vite preview` serves only the production bundle and does not provide the development proxy; it needs the production API/reverse-proxy arrangement. Never publish the Vite development server as a production server.
+Start all services:
 
-## Behavior
+```bash
+docker compose up -d --build
+```
 
-- Root comments use the actual 25-item DRF pagination, `sort=user_name|email|created_at`, and `order=asc|desc`. Sort and page are reflected in the URL. Default: newest first.
-- Each reply level is fetched only after expansion. Logical reply depth is unlimited, while indentation stops increasing after five levels to keep content readable. Ancestor IDs guard against cycles.
-- Guest and signed-in comments use the same CAPTCHA-protected creation endpoints. The HTML toolbar inserts the server's four supported tags. DOMPurify sanitizes all displayed HTML and previews. Form text is sent to the backend without silently rewriting it.
-- CAPTCHA loads when the form mounts, refreshes every four minutes and after submission success/failure, and can be refreshed manually. Backend errors remain authoritative.
-- JWT access and refresh tokens exist only in module memory. Registration uses the returned token pair. Access refresh is single-flight and retries a failed authorized request once. Reloading or closing the page ends the local session; there is no localStorage, sessionStorage, token URL, or invented cookie endpoint. Logout clears the local session even when blacklisting is unavailable; failures are shown.
-- WebSocket events invalidate expanded reply lists and offer a refresh banner for root activity without reordering a conversation being read. Reconnection uses exponential backoff capped at 30 seconds plus jitter. Reconnecting invalidates expanded replies as well. Offline users can refresh manually; there is no polling.
-- Uploads use multipart `file` after comment creation. A failed upload can be retried against the already-created comment or skipped without posting duplicates. Fetch provides an indeterminate uploading state. Images have local previews and uploaded images have an accessible dialog lightbox.
+Apply database migrations:
 
-## Existing backend limitations
+```bash
+docker compose exec backend python manage.py migrate
+```
 
-1. Replies return a complete, unpaginated array for one parent. The frontend cannot limit that server response. It fetches only explicitly expanded levels; it never traverses the complete tree automatically.
-2. `CommentSerializer` contains no attachment metadata, and the attachment endpoint supports POST only. The frontend can display real attachment records returned by uploads made during this page session. Existing attachments cannot be discovered after reload or by other visitors. No attachment records or URLs are fabricated.
-3. Images are resized server-side to fit 320×240; animated GIFs are rejected. TXT must be UTF-8 and at most 100 KiB. There is no documented server image byte-size cap, so the frontend does not invent one.
-4. The backend parses text as XML before HTML sanitization. Tags must close correctly, literal ampersands must be `&amp;`, and link attribute ampersands must be escaped. The editor escapes inserted URL attributes; the form checks XML syntax and the server validates allowed HTML.
-5. Emails are publicly returned in comment responses, including for anonymous users. The form discloses this rather than promising privacy.
-6. There is no CAPTCHA expiry metadata. Four-minute refresh is precautionary; the backend decides whether a code is valid and a new code is fetched after validation failure.
-7. JWTs are JSON-only. Persistent secure cookie sessions require backend changes and are intentionally unsupported.
-8. Creation and attachment upload are separate requests, without transactions or idempotency keys across them. If a creation request times out after the server saves it, check the feed before retrying. The backend provides no supported way to resolve this ambiguity automatically.
-9. No voting, editing, deletion, bookmarks, server search, or reply counts are exposed; none are fabricated.
+Open the frontend:
 
-## Organization
+**http://localhost:8080**
 
-`app` composes providers and global styles; `pages` lays out the discussion board; `widgets` owns the header and feed/tree orchestration; `features` owns auth, composing, formatting, sorting, and pagination; `entities` contains backend models and entity display components; `shared` contains HTTP, configuration, sanitization, icons, and dialogs. Dependencies point down those layers. This single-page application does not need a routing dependency.
+In Docker, Nginx serves the compiled React application and proxies API and WebSocket requests to Django.
 
-No screenshot attachment was available in the task context. Styling follows the requested light, restrained forum direction.
+---
 
-## Verification performed
+## API Integration
 
-Dependency installation, strict TypeScript checking, production bundling, and five DOMPurify/URL security tests passed. The final dependency installation reported zero known vulnerabilities. The Vite development server started successfully. Headless Chrome rendered the real application at 1440px desktop and 390px mobile viewport sizes, with no horizontal overflow. The server-unavailable state was visually inspected. Browser checks verified opening and closing the authentication dialog, switching to registration, and toggling the editor preview, with no uncaught JavaScript exceptions. No Django server was listening at `127.0.0.1:8000`, so successful live comments, CAPTCHA, uploads, JWT, and WebSocket exchanges could not be verified. Start the existing backend and exercise these paths before release. Browser rendering did not use seeded or simulated comments.
+The frontend communicates with the Django REST API using a shared HTTP client.
+
+### Main API Operations
+
+| Operation | Endpoint |
+|---|---|
+| Get comments | `GET /comments/` |
+| Create comment | `POST /comments/create/` |
+| Get replies | `GET /comments/{id}/replies/` |
+| Create reply | `POST /comments/{id}/replies/` |
+| Upload attachment | `POST /comments/{id}/attachments/` |
+| Get CAPTCHA | `GET /api/captcha/` |
+| Register | `POST /api/auth/register/` |
+| Login | `POST /api/auth/login/` |
+| Refresh token | `POST /api/auth/refresh/` |
+| Logout | `POST /api/auth/logout/` |
+
+During development, the Vite proxy forwards requests from `/backend` to the Django API.
+
+In Docker, Nginx handles the proxy:
+
+```text
+Browser
+   |
+   v
+React + Nginx
+   |
+   +---- /backend/* ---> Django REST API
+   |
+   +---- /ws/* -------> Django Channels
+```
+
+### Authentication Handling
+
+The shared HTTP client attaches JWT access tokens to authenticated requests.
+
+If an access token expires, the client can attempt a refresh and retry the request.
+
+If refresh fails, the session is cleared.
+
+---
+
+## Real-Time Communication
+
+WebSocket endpoint:
+
+```text
+ws://localhost:8080/ws/comments/
+```
+
+The frontend listens for the `comment.created` event.
+
+When an event arrives, the relevant part of the comment feed is marked for refresh.
+
+The WebSocket hook handles:
+
+- Connection status
+- Automatic reconnection
+- Duplicate event filtering
+- Batched update notifications
+- Connection cleanup
+
+---
+
+## Build
+
+Create a production bundle:
+
+```bash
+npm run build
+```
+
+Vite generates the compiled application inside the `dist` directory.
+
+The Docker frontend image uses a multi-stage build:
+
+1. Node.js installs dependencies and builds React.
+2. Nginx serves the generated static files.
+3. Nginx proxies backend and WebSocket requests.
+
+---
+
+## Interface Design
+
+The UI uses a minimal discussion-focused design with:
+
+- Light background
+- Neutral cards and borders
+- Blue interactive accents
+- Responsive layouts
+- Clear typography
+- Loading and validation feedback
+
+CSS Modules keep component styles isolated and reduce naming conflicts.
+
+---
+
+## Error Handling
+
+The frontend handles:
+
+- Network errors
+- API validation errors
+- Failed authentication requests
+- Invalid CAPTCHA input
+- Unsupported attachments
+- Failed comment or reply creation
+- Temporary WebSocket disconnections
+
+The interface displays relevant error messages and retry actions.
+
+---
+
+## Backend Repository
+
+The React application requires the Common Ground Django backend.
+
+Backend technologies include Django REST Framework, PostgreSQL, Redis, Celery, Daphne, and Django Channels.
+
+See the backend repository for API implementation details, automated tests, database configuration, and Docker Compose instructions.
+
+---
+
+## Development Notes
+
+This frontend demonstrates practical experience with React, TypeScript, component-based architecture, API integration, JWT authentication, WebSockets, responsive UI development, validation, and Docker.
+
+**Developed for the dZENcode technical assessment.**

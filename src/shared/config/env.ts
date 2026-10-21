@@ -1,6 +1,8 @@
 const configuredApi = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
-export const apiBase = import.meta.env.DEV ? '/backend' : configuredApi;
+export const apiBase = import.meta.env.DEV
+  ? '/backend'
+  : configuredApi || '/backend';
 
 export function fileUrl(value: string): string {
   try {
@@ -15,6 +17,10 @@ export function fileUrl(value: string): string {
       return `/backend${url.pathname}${url.search}`;
     }
 
+    if (!configuredApi) {
+      return `${url.pathname}${url.search}`;
+    }
+
     return url.href;
   } catch {
     return '';
@@ -22,24 +28,19 @@ export function fileUrl(value: string): string {
 }
 
 export function socketUrl(): string {
-  if (import.meta.env.DEV) {
-    let protocol = 'ws:';
+  const configuredWs = import.meta.env.VITE_WS_URL;
 
-    if (window.location.protocol === 'https:') {
-      protocol = 'wss:';
-    }
+  if (configuredWs) {
+    const url = new URL('/ws/comments/', configuredWs);
 
-    return `${protocol}//${window.location.host}/ws/comments/`;
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+
+    return url.href;
   }
 
-  const base = import.meta.env.VITE_WS_URL || configuredApi || window.location.origin;
-  const url = new URL('/ws/comments/', base);
+  const protocol = window.location.protocol === 'https:'
+    ? 'wss:'
+    : 'ws:';
 
-  if (window.location.protocol === 'https:') {
-    url.protocol = 'wss:';
-  } else if (url.protocol === 'http:') {
-    url.protocol = 'ws:';
-  }
-
-  return url.href;
+  return `${protocol}//${window.location.host}/ws/comments/`;
 }
